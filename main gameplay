@@ -1,0 +1,1185 @@
+///////// setting /////////
+
+let player;
+
+let gravity = 0.7;
+let groundY = 500;
+let bricks = [];
+let cameraX = 0;
+let worldWidth = 4000;
+let obstacles=[];
+let gameState = "intro";
+let currentStage = 1;
+let fallingObstacles = [];
+let bgColor;
+let clearFade = 0;
+let bgBrightness = 20;
+let lives = 3;
+let gameOverFade = 0;
+let maxLives = 3;
+// let composure = 100;
+// let maxComposure = 100;
+
+function setup() {
+
+  createCanvas(
+    windowWidth,
+    windowHeight
+  );
+  
+  //bgColor = 20;
+  bgBrightness = 20;
+
+  player = {
+
+    // 위치
+    x: 100,
+    y: 100,
+    
+    prevY: 100, 
+
+    // 크기
+    r: 30,
+
+    // 속도
+    vx: 0,
+    vy: 0,
+
+    // 이동값
+    speed: 0.8,
+    maxSpeed: 7,
+
+    // 점프
+    jumpPower: -15,
+
+    // 상태
+    grounded: false,
+
+    // 마찰
+    friction: 0.85
+};
+  
+  //fallingObstacles.push({
+
+//   x: 1800,
+//   y: 0,
+
+//   w: 60,
+//   h: 60,
+
+//   vy: 0,
+
+//   triggered: false
+// });
+}
+
+function draw() {
+
+  background(bgBrightness);
+
+  if (gameState === "intro") {
+
+    drawIntro();
+  }
+  
+  else if (gameState === "lobby") {
+
+    drawLobby();
+  }
+  
+  else if (gameState === "clear") {
+    
+    bgBrightness = lerp(
+    bgBrightness,
+    255,
+    0.02
+  );
+
+    runGame();
+
+    drawClearOverlay();
+}
+
+  else if (gameState === "game") {
+
+    runGame();
+  }
+
+  else if (gameState === "ending") {
+
+    drawEnding();
+  }
+  else if (gameState === "gameover") {
+    
+    drawGameOver();
+}
+  
+  updateFallingObstacles();
+
+  drawFallingObstacles();
+
+  checkFallingObstacleCollision();
+  
+//   updateComposure();
+  
+//   drawComposureBar();
+  
+}
+
+function runGame() {
+
+  //background(20);
+
+  player.grounded = false;
+
+  updatePlayer();
+
+  checkGround();
+
+  checkWalls();
+
+  // 카메라 업데이트
+  updateCamera();
+
+  // 카메라 시작
+  push();
+
+  translate(-cameraX, 0);
+
+  drawGround();
+
+  drawBricks();
+  
+  updateFallingObstacles();
+
+  drawFallingObstacles();
+
+  checkFallingObstacleCollision();
+
+  drawPlayer();
+  
+  drawObstacles();
+  
+  checkObstacleCollision();
+
+  pop();
+
+  // UI는 카메라 영향 안 받음
+  debugInfo();
+  
+  if (
+  player.x > worldWidth - 200 &&
+  gameState === "game"
+) {
+
+    // if (currentStage === 1) {
+
+      clearFade = 0;
+
+      gameState = "clear";
+    }
+
+//     else if (currentStage === 2) {
+
+//       gameState = "ending";
+    // }
+// }
+}
+
+function resetGame() {
+
+  // 플레이어 리셋
+  player.x = 100;
+  player.y = 100;
+
+  player.vx = 0;
+  player.vy = 0;
+
+  // 카메라 리셋
+  cameraX = 0;
+  
+  for (let obs of fallingObstacles) {
+
+    obs.y = obs.originalY;
+
+    obs.vy = 0;
+
+    obs.triggered = false;
+  }
+}
+
+function handleInput() {
+
+  // 왼쪽
+  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+    player.vx -= player.speed;
+  }
+
+  // 오른쪽
+  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+    player.vx += player.speed;
+  }
+
+  // 최대속도 제한
+  player.vx = constrain(
+    player.vx,
+    -player.maxSpeed,
+    player.maxSpeed
+  );
+}
+
+
+function applyGravity() {
+
+  player.vy += gravity;
+}
+
+function applyFriction() {
+
+  player.vx *= player.friction;
+}
+
+
+function movePlayer() {
+
+  player.x += player.vx;
+  checkBrickCollisionX();
+  player.y += player.vy;
+  checkBrickCollisionY();
+}
+
+
+function checkGround() {
+
+  if (player.y + player.r > groundY) {
+
+    player.y = groundY - player.r;
+
+    player.vy = 0;
+
+    player.grounded = true;
+
+  }
+}
+
+function checkWalls() {
+
+  // 왼쪽 벽
+  if (player.x - player.r < 0) {
+
+    player.x = player.r;
+
+    player.vx = 0;
+  }
+
+  // 오른쪽 벽
+  if (player.x + player.r > worldWidth) {
+
+    player.x = worldWidth - player.r;
+
+    player.vx = 0;
+  }
+}
+
+///////// intro /////////
+
+function drawIntro() {
+
+  background(10);
+
+  fill(255);
+
+  textAlign(CENTER);
+
+  // 제목
+  textSize(70);
+
+  text(
+    "SOONGNYANGI",
+    width / 2,
+    height / 2 - 120
+  );
+
+  // 제작자
+  textSize(28);
+
+  text(
+    "Made by soongnyangi (Group8)",
+    width / 2,
+    height / 2 - 40
+  );
+
+  // 사용법
+  textSize(25);
+
+  text(
+    "SPACE : JUMP",
+    width / 2,
+    height / 2 + 40
+  );
+  
+  text(
+    "A / D : MOVE",
+    width / 2,
+    height / 2 + 80
+  );
+
+  // 시작 문구
+  textSize(22);
+
+  text(
+    "PRESS ENTER TO START",
+    width / 2,
+    height / 2 + 180
+  );
+}
+
+///////// lobby /////////
+
+function drawLobby() {
+
+  background(15);
+
+  fill(255);
+
+  textAlign(CENTER);
+
+  textSize(60);
+
+  text(
+    "SELECT STAGE",
+    width / 2,
+    120
+  );
+
+  // STAGE 1 버튼
+  fill(80);
+
+  rect(
+    width/2 - 250,
+    250,
+    200,
+    120
+  );
+
+  // STAGE 2 버튼
+  rect(
+    width/2 + 50,
+    250,
+    200,
+    120
+  );
+
+  fill(255);
+
+  textSize(35);
+
+  text(
+    "중앙도서관",
+    width/2 - 150,
+    320
+  );
+
+  text(
+    "조만식 기념관",
+    width/2 + 150,
+    320
+  );
+}
+
+///////// ground /////////
+
+function drawGround() {
+
+  fill(80);
+
+  rect(
+    0,
+    groundY,
+    worldWidth,
+    height - groundY
+  );
+}
+
+///////// player /////////
+
+function drawPlayer() {
+
+  push();
+
+  translate(player.x, player.y);
+
+  noStroke();
+
+  // 몸통
+  fill(40);
+
+  rect(-16, -12, 32, 24);
+
+  // 머리
+  rect(-14, -28, 28, 20);
+
+  // 귀
+  triangle(-14, -28, -8, -40, -2, -28);
+
+  triangle(14, -28, 8, -40, 2, -28);
+
+  // 꼬리
+  rect(16, -8, 10, 4);
+
+  // 눈
+  fill(255);
+
+  rect(-8, -20, 4, 4);
+
+  rect(4, -20, 4, 4);
+
+  // 다리 애니메이션
+  fill(30);
+
+  let legOffset =
+    sin(frameCount * 0.2) * 2;
+
+  // 왼쪽 다리
+  rect(-10, 12, 6, 12 + legOffset);
+
+  rect(-2, 12, 6, 12 - legOffset);
+
+  // 오른쪽 다리
+  rect(6, 12, 6, 12 + legOffset);
+
+  rect(14, 12, 6, 12 - legOffset);
+
+  pop();
+}
+
+function updatePlayer() {
+  
+  player.prevY = player.y;
+
+  handleInput();
+
+  applyGravity();
+
+  applyFriction();
+
+  movePlayer();
+}
+
+function playerDie() {
+  lives--;
+  if (lives <= 0) {
+    lives = maxLives;
+    gameOverFade = 0;
+    gameState = "gameover";
+}
+  else {
+    player.x = 100;   
+    player.y = 100;  
+    player.vx = 0;
+    player.vy = 0;
+    //cameraX = 0;
+  }
+}
+///////// debug /////////
+
+function debugInfo() {
+  // 조작법 박스
+  fill(0, 180);
+  rect(10, 10, 220, 90, 10);
+  fill(255);
+  textSize(18);
+  text("SPACE = JUMP", 95, 45);
+  text("A / D = MOVE", 95, 75);
+
+  // 목숨 표시
+  let startX = 20;
+  let startY = 120;
+  let pawSize = 28;
+  let gap = 40;
+
+  fill(200);
+  noStroke();
+  textSize(16);
+  text("LIVES", startX + 20, startY - 8);
+
+  for (let i = 0; i < maxLives; i++) {
+    let px = startX + i * gap;
+    let py = startY + 10;
+
+    if (i < lives) {
+      fill(255); // 남은 목숨: 밝음
+    } else {
+      fill(80);  // 잃은 목숨: 어둠
+    }
+
+    drawPaw(px, py, pawSize);
+  }
+}
+
+function drawPaw(x, y, s) {
+  let r = s * 0.38;
+
+  // 메인 패드
+  ellipse(x + s/2, y + s * 0.62, r * 2, r * 1.7);
+
+  // 발가락 3개
+  ellipse(x + s * 0.25, y + s * 0.28, r * 0.85, r * 0.85);
+  ellipse(x + s * 0.5,  y + s * 0.18, r * 0.85, r * 0.85);
+  ellipse(x + s * 0.75, y + s * 0.28, r * 0.85, r * 0.85);
+}    
+
+///////// brick obstacles /////////
+
+function drawBricks() {
+
+  fill(180, 80, 60);
+
+  for (let brick of bricks) {
+
+    rect(
+      brick.x,
+      brick.y,
+      brick.w,
+      brick.h
+    );
+  }
+}
+
+function checkBrickCollision() {
+
+  for (let brick of bricks) {
+
+    let previousBottom =
+      player.prevY + player.r;
+
+    let currentBottom =
+      player.y + player.r;
+
+    let left = player.x - player.r;
+    let right = player.x + player.r;
+
+    let insideX =
+      right > brick.x &&
+      left < brick.x + brick.w;
+
+    // 이전 프레임엔 위에 있었고
+    let wasAbove =
+      previousBottom <= brick.y;
+
+    // 현재 프레임엔 닿았는지
+    let hitNow =
+      currentBottom >= brick.y;
+
+    if (insideX && wasAbove && hitNow) {
+
+      player.y = brick.y - player.r;
+
+      player.vy = 0;
+
+      player.grounded = true;
+    }
+  }
+}
+
+function checkBrickCollisionY() {
+
+  for (let brick of bricks) {
+
+    let left = player.x - player.r;
+    let right = player.x + player.r;
+
+    let top = player.y - player.r;
+    let bottom = player.y + player.r;
+
+    let insideX =
+      right > brick.x &&
+      left < brick.x + brick.w;
+
+    let insideY =
+      bottom > brick.y &&
+      top < brick.y + brick.h;
+
+    if (insideX && insideY) {
+
+      // 떨어지는 중
+      if (player.vy > 0) {
+
+        player.y = brick.y - player.r;
+
+        player.vy = 0;
+
+        player.grounded = true;
+      }
+
+      // 점프 중 머리 박음
+      else if (player.vy < 0) {
+
+        player.y =
+          brick.y + brick.h + player.r;
+
+        player.vy = 0;
+      }
+    }
+  }
+}
+
+function checkBrickCollisionX() {
+
+  for (let brick of bricks) {
+
+    let left = player.x - player.r;
+    let right = player.x + player.r;
+
+    let top = player.y - player.r;
+    let bottom = player.y + player.r;
+
+    let insideX =
+      right > brick.x &&
+      left < brick.x + brick.w;
+
+    let insideY =
+      bottom > brick.y &&
+      top < brick.y + brick.h;
+
+    if (insideX && insideY) {
+
+      // 오른쪽 이동 중
+      if (player.vx > 0) {
+
+        player.x = brick.x - player.r;
+      }
+
+      // 왼쪽 이동 중
+      else if (player.vx < 0) {
+
+        player.x =
+          brick.x + brick.w + player.r;
+      }
+
+      player.vx = 0;
+    }
+  }
+}
+
+///////// camera /////////
+
+function updateCamera() {
+    let targetX =
+    player.x - width / 2;
+
+  cameraX = lerp(
+    cameraX,
+    targetX,
+    0.1
+  );
+  cameraX = max(cameraX, 0);
+}
+
+///////// fullscreen /////////
+
+function windowResized() {  ///????????
+
+  resizeCanvas(
+    windowWidth,
+    windowHeight
+  );
+}
+
+///////// mouse&key /////////
+
+function mousePressed() {
+  
+  if (gameState === "intro") {
+    
+    fullscreen(true);
+
+    gameState = "lobby";
+  }
+
+  // LOBBY 선택
+  else if (gameState === "lobby") {
+
+    // STAGE 1
+    if (
+
+      mouseX > width/2 - 250 &&
+      mouseX < width/2 - 50 &&
+
+      mouseY > 250 &&
+      mouseY < 370
+    ) {
+
+      currentStage = 1;
+
+      loadStage1();
+
+      gameState = "game";
+    }
+
+    // STAGE 2
+    if (
+
+      mouseX > width/2 + 50 &&
+      mouseX < width/2 + 250 &&
+
+      mouseY > 250 &&
+      mouseY < 370
+    ) {
+
+      currentStage = 2;
+
+      loadStage2();
+
+      gameState = "game";
+    }
+  }
+  else if (gameState === "clear") {
+
+  let insideButton =
+
+    mouseX > width/2 - 150 &&
+    mouseX < width/2 + 150 &&
+
+    mouseY > height/2 &&
+    mouseY < height/2 + 90;
+
+  if (insideButton) {
+
+    if (currentStage === 1) {
+
+    resetGame();
+    gameState = "lobby";
+  }
+
+  else if (currentStage === 2) {
+
+    gameState = "ending";
+    }
+  }
+}
+}
+
+function keyPressed() {
+  
+  if (gameState === "gameover" && keyCode === ENTER) {
+    lives = maxLives;
+    gameState = "intro";
+}
+
+  // INTRO → GAME
+  if (
+    gameState === "intro" &&
+    keyCode === ENTER
+  ) {
+    gameState = "lobby";
+  }
+
+  // GAME 점프
+  else if (
+    gameState === "game" &&
+    key === ' ' &&
+    player.grounded
+  ) {
+
+    player.vy = player.jumpPower;
+  }
+}
+
+///////// obstacles /////////
+
+function drawObstacles() {
+  fill (255,0,0);
+  
+  for (let obs of obstacles)
+    {
+      rect(
+      obs.x,
+      obs.y,
+      obs.w,
+      obs.h
+      );
+    }
+}
+
+function checkObstacleCollision() {
+
+  for (let obs of obstacles) {
+
+    let left = player.x - player.r;
+    let right = player.x + player.r;
+
+    let top = player.y - player.r;
+    let bottom = player.y + player.r;
+
+    let hit =
+      right > obs.x &&
+      left < obs.x + obs.w &&
+      bottom > obs.y &&
+      top < obs.y + obs.h;
+
+    if (hit) {
+
+      playerDie();
+    }
+  }
+}
+
+function updateFallingObstacles() {
+  for (let obs of fallingObstacles) {
+    if (abs(player.x - obs.x) < 250) {
+      obs.triggered = true;
+    }
+
+    if (obs.triggered) {
+      obs.vy += 0.5;
+      obs.y += obs.vy;
+
+      // 바닥 충돌
+      if (obs.y + obs.h > groundY) {
+        obs.y = groundY - obs.h;
+        obs.vy = 0;
+      }
+    }
+    }
+}
+
+function drawFallingObstacles() {
+
+  fill(120);
+
+  for (let obs of fallingObstacles) {
+
+    rect(
+      obs.x,
+      obs.y,
+      obs.w,
+      obs.h
+    );
+  }
+}
+
+function checkFallingObstacleCollision() {
+
+  for (let obs of fallingObstacles) {
+
+    let left = player.x - player.r;
+    let right = player.x + player.r;
+
+    let top = player.y - player.r;
+    let bottom = player.y + player.r;
+
+    let hit =
+      right > obs.x &&
+      left < obs.x + obs.w &&
+      bottom > obs.y &&
+      top < obs.y + obs.h;
+
+    if (hit) {
+
+      playerDie()
+    }
+  }
+}
+
+
+
+///////// stages /////////
+
+function loadStage1() {
+
+  bgBrightness = 20;
+  lives = maxLives;
+  // 초기화
+  bricks = [];
+  obstacles = [];
+  fallingObstacles = [];
+
+  // 플레이어 시작
+  player.x = 100;
+  player.y = 100;
+  
+  player.vx = 0;
+  player.vy = 0;
+
+  cameraX = 0;
+
+  // 플랫폼
+  bricks.push({
+    x: 300,
+    y: 400,
+    w: 200,
+    h: 40
+  });
+
+  // 장애물
+  obstacles.push({
+    x: 900,
+    y: 450,
+    w: 60,
+    h: 50
+  });
+  
+  fallingObstacles.push({
+
+  x: 1800,
+  y: 0,
+    
+  originalY: 0,  
+
+  w: 60,
+  h: 60,
+
+  vy: 0,
+
+  triggered: false,
+    waiting: false
+});
+  
+  fallingObstacles.push({
+
+  x: 2500,
+  y: 0,
+
+  originalY: 0,  
+    
+  w: 60,
+  h: 60,
+
+  vy: 0,
+
+  triggered: false
+});
+}
+
+function loadStage2() {
+
+  bgBrightness = 20;
+  lives = maxLives;
+  
+  bricks = [];
+  obstacles = [];
+  fallingObstacles = [];
+
+  player.x = 100;
+  player.y = 100;
+  
+  player.vx = 0;
+  player.vy = 0;
+
+  cameraX = 0;
+
+  // 더 어려운 맵
+  bricks.push({
+    x: 500,
+    y: 350,
+    w: 150,
+    h: 40
+  });
+
+  bricks.push({
+    x: 900,
+    y: 250,
+    w: 200,
+    h: 40
+  });
+
+  obstacles.push({
+    x: 700,
+    y: 450,
+    w: 80,
+    h: 80
+  });
+  
+  fallingObstacles.push({
+
+  x: 1800,
+  y: 0,
+    
+  originalY: 0,  
+
+  w: 60,
+  h: 60,
+
+  vy: 0,
+
+  triggered: false
+});
+  
+  fallingObstacles.push({
+
+  x: 2000,
+  y: 0,
+
+  originalY: 0,  
+    
+  w: 60,
+  h: 60,
+
+  vy: 0,
+
+  triggered: false
+});
+  
+  fallingObstacles.push({
+
+  x: 2200,
+  y: 0,
+
+  originalY: 0,  
+    
+  w: 60,
+  h: 60,
+
+  vy: 0,
+
+  triggered: false
+});
+}
+
+///////// stage clear ////////
+
+function drawClearScreen() {
+
+  background(255);
+
+  fill(0);
+
+  textAlign(CENTER);
+
+  // 제목
+  textSize(70);
+
+  text(
+    "STAGE CLEAR",
+    width / 2,
+    height / 2 - 100
+  );
+
+  // 버튼
+  fill(60);
+
+  rect(
+    width/2 - 150,
+    height/2,
+    300,
+    90,
+    15
+  );
+
+  // 버튼 글씨
+  fill(255);
+
+  textSize(30);
+
+  text(
+    "BACK TO LOBBY",
+    width / 2,
+    height / 2 + 55
+  );
+}
+
+function drawClearOverlay() {
+
+  push();
+
+  resetMatrix();
+  
+  clearFade += 3;
+
+  clearFade = constrain(
+    clearFade,
+    0,
+    255
+  );
+
+  // UI 등장
+  if (clearFade > 30) {
+
+    textAlign(CENTER);
+
+    // 제목
+    fill(0);
+
+    textSize(70);
+
+    text(
+      "STAGE CLEAR",
+      width / 2,
+      height / 2 - 120
+    );
+
+    // 버튼
+    fill(40);
+
+    rect(
+      width/2 - 150,
+      height/2,
+      300,
+      90,
+      15
+    );
+
+    // 버튼 글자
+    fill(255);
+
+    textSize(30);
+
+    text(
+      "BACK TO LOBBY",
+      width / 2,
+      height / 2 + 55
+    );
+  }
+  pop();
+}
+
+///////// ending /////////
+
+function drawEnding() {
+
+  background(0);
+
+  fill(255);
+
+  textAlign(CENTER);
+
+  textSize(70);
+
+  text(
+    "THE END",
+    width / 2,
+    height / 2 - 80
+  );
+
+  textSize(30);
+
+  text(
+    "Thanks for Playing",
+    width / 2,
+    height / 2
+  );
+
+  textSize(20);
+
+  text(
+    "Created by 민경준,김서정,서윤아 (Group8)",
+    width / 2,
+    height / 2 + 80
+  );
+}
+
+function drawGameOver() {
+  background(0);
+  
+  gameOverFade = min(gameOverFade + 3, 255);
+  
+  fill(255, 0, 0, gameOverFade);
+  textAlign(CENTER);
+  textSize(80);
+  text("GAME OVER", width/2, height/2 - 80);
+  
+  fill(255, gameOverFade);
+  textSize(30);
+  text("Press ENTER to restart", width/2, height/2 + 20);
+}
